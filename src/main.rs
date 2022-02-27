@@ -8,6 +8,7 @@ use bevy::prelude::*;
 use enemy::*;
 use input::{input_event_system, touch_system, mouse_click_system};
 use std::time::Duration;
+use bevy::render::view::VisibleEntities;
 use rand::{Rand, Rng};
 
 const WINDOW_SCALE:f32 = 1.0/2.0;
@@ -59,6 +60,9 @@ struct Health(f32);
 
 #[derive(Component)]
 struct Velocity(Vec3);
+
+#[derive(Component)]
+struct GameplayCamera; // Attached to our primary orthographic camera, NOT our UI camera.
 // END Components
 
 fn main() {
@@ -84,6 +88,7 @@ fn main() {
 
 		// Rendering
 		.add_system(animate_sprite_system)
+		.add_system(clean_oob_components)
 		// Movement
 		.add_system(movement)
 		// Inputs:
@@ -118,7 +123,7 @@ fn setup(
 	let mut camera = OrthographicCameraBundle::new_2d();
 	camera.orthographic_projection.scale = WINDOW_SCALE;
 	//camera.camera.far = 10.0;
-	commands.spawn_bundle(camera);
+	commands.spawn_bundle(camera).insert(GameplayCamera);
 	commands.spawn_bundle(UiCameraBundle::default());
 	commands.insert_resource(ScreenShake::default());
 
@@ -176,10 +181,18 @@ fn movement(
 }
 
 fn clean_oob_components(
-	camera: Res<Camera>,
-	mut query: Query<(Entity, &Transform, With<DestroyOnOOB>)>,
+	mut commands: Commands,
+	window_bounds: Res<WindowBounds>, // Eventually we should use the VisibleEntities on the camera.
+	mut entity_query: Query<(Entity, &Transform, With<DestroyOnOOB>)>,
 ) {
-	todo!();
+	// TODO: Swap this window-based hack with one that uses the real properties.
+	for (entity, tf, _) in entity_query.iter_mut() {
+		let in_bounds = tf.translation.x > window_bounds.left && tf.translation.x < window_bounds.right && tf.translation.y > window_bounds.bottom && tf.translation.y < window_bounds.top;
+		if !in_bounds {
+			commands.entity(entity).despawn();
+			info!("Removing OOB entity.");
+		}
+	}
 }
 
 //struct GreetTimer(Timer);

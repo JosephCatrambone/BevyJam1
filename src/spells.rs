@@ -1,7 +1,7 @@
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 
-use crate::{ENEMY_RENDER_PRIORITY, SpriteSheets, Velocity};
+use crate::{DestroyOnOOB, ENEMY_RENDER_PRIORITY, SpriteSheets, Velocity};
 use crate::player::PlayerState;
 
 const MAGIC_MISSILE_SPEED:f32 = 100.0f32;
@@ -42,6 +42,7 @@ fn cast_magic_missile(
 					},
 					..Default::default()
 				})
+				.insert(DestroyOnOOB)
 				.insert(Timer::from_seconds(0.1, true))
 				.insert(Velocity(delta))
 				.insert(SpellEffect {
