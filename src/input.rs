@@ -4,13 +4,17 @@ use bevy::input::touch::*;
 use bevy::input::mouse::{MouseButtonInput, MouseMotion, MouseWheel};
 use bevy::window::CursorMoved;
 
-pub fn mouse_click_system(mouse_button_input: Res<Input<MouseButton>>) {
+pub fn mouse_click_system(
+	mut commands: Commands,
+	mouse_button_input: Res<Input<MouseButton>>,
+) {
 	if mouse_button_input.pressed(MouseButton::Left) {
 		info!("left mouse currently pressed");
 	}
 
 	if mouse_button_input.just_pressed(MouseButton::Left) {
-		info!("left mouse just pressed");
+		//info!("left mouse just pressed");
+		commands.spawn();
 	}
 
 	if mouse_button_input.just_released(MouseButton::Left) {
