@@ -9,16 +9,13 @@ pub fn mouse_click_system(
 	mouse_button_input: Res<Input<MouseButton>>,
 ) {
 	if mouse_button_input.pressed(MouseButton::Left) {
-		info!("left mouse currently pressed");
+		//info!("left mouse currently pressed");
 	}
 
 	if mouse_button_input.just_pressed(MouseButton::Left) {
-		//info!("left mouse just pressed");
-		commands.spawn();
 	}
 
 	if mouse_button_input.just_released(MouseButton::Left) {
-		info!("left mouse just released");
 	}
 }
 
@@ -52,7 +49,6 @@ pub fn touch_system(touches: Res<Touches>) {
 
 /// This system prints out all mouse events as they come in
 pub fn input_event_system(
-	mut commands: Commands,
 	mut mouse_button_input_events: EventReader<MouseButtonInput>,
 	mut mouse_motion_events: EventReader<MouseMotion>,
 	mut cursor_moved_events: EventReader<CursorMoved>,

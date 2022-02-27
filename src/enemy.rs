@@ -4,10 +4,12 @@ use std::time::{Duration, Instant};
 use bevy::core::FixedTimestep;
 use bevy::sprite::collide_aabb::collide;
 
-use crate::{Health, SpriteSheets, Velocity, WindowBounds};
+use crate::{Health, SpriteSheets, Velocity, WindowBounds, ENEMY_RENDER_PRIORITY};
+use crate::player::PlayerState;
 use crate::spells::SpellEffect;
 
-const ENEMY_RENDER_PRIORITY:f32 = 1.1; // Slightly higher than player.
+const ENEMY_SPEED: f32 = 3.0f32;
+const ENEMY_HEALTH: f32 = 1.0f32;
 
 // Public Access:
 pub struct EnemyPlugin;
@@ -26,6 +28,7 @@ impl Plugin for EnemyPlugin {
 				.with_system(complete_wave)
 		);
 		app.add_system(apply_spell_effects);
+		app.add_system(count_and_remove_dead_enemies);
 	}
 }
 
@@ -58,6 +61,7 @@ fn spawn_enemy(
 	mut active_enemies: ResMut<ActiveEnemiesInWave>,
 	sprite_sheets: Res<SpriteSheets>,
 	atlas_assets: Res<Assets<TextureAtlas>>,
+	player_state: Res<PlayerState>, // So we know where to go.
 	window: Res<WindowBounds>,
 ) {
 	if pending_enemies.0 > 0 {
@@ -66,6 +70,9 @@ fn spawn_enemy(
 		//let y = rng.gen::<f32>() * 10f32;
 		let x = rng.gen_range::<f32>(window.left, window.right);
 		let y = rng.gen_range(window.bottom, window.top);
+
+		// Set trajectory to player.
+		let trajectory = Vec3::new(player_state.position.x - x, player_state.position.y - y, 0f32).normalize()*ENEMY_SPEED;
 
 		commands
 			.spawn_bundle(SpriteSheetBundle {
@@ -78,8 +85,9 @@ fn spawn_enemy(
 				..Default::default()
 			})
 			.insert(Timer::from_seconds(0.1, true))
-			.insert(Health(10.0f32))
-			.insert(Velocity(Vec3::new(rng.next_f32() - 0.5f32, rng.next_f32() - 0.5f32, 0f32)));
+			.insert(Health(ENEMY_HEALTH))
+			.insert(Velocity(trajectory))
+			.insert(Enemy);
 		pending_enemies.0 -= 1;
 		active_enemies.0 += 1;
 	}
@@ -117,6 +125,8 @@ fn apply_spell_effects(
 			if let Some(_) = collision {
 				// TODO: We should match the type of the collision to the enemy resistance even before we do this.
 				health.0 -= spell_effect.base_damage;
+
+				info!("Damage.  Health remaining: {}", health.0);
 			}
 		}
 	}
@@ -129,10 +139,18 @@ fn count_and_remove_dead_enemies(
 	mut active_enemes: ResMut<ActiveEnemiesInWave>,
 	query: Query<(Entity, &Health, With<Enemy>)>,
 ) {
+	let mut live_enemies = 0; // Safer to count rather than rely on decrementing.
+
 	for (entity, health, _) in query.iter() {
 		if health.0 <= 0.0 {
-			commands.entity(entity).remove::<Enemy>();
-			active_enemes.0 -= 1;
+			commands.entity(entity).despawn();
+			//commands.entity(entity).remove::<Enemy>();
+			//commands.entity(entity).remove_bundle::<Enemy>();
+			info!("Removing dead enemy.");
+		} else {
+			live_enemies += 1;
 		}
 	}
+
+	active_enemes.0 = live_enemies;
 }

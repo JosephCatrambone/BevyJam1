@@ -1,5 +1,6 @@
 mod enemy;
 mod input;
+mod player;
 mod spells;
 
 use std::borrow::BorrowMut;
@@ -9,9 +10,10 @@ use input::{input_event_system, touch_system, mouse_click_system};
 use std::time::Duration;
 use rand::{Rand, Rng};
 
-const WINDOW_SCALE:f32 = 1.0/5.0;
+const WINDOW_SCALE:f32 = 1.0/2.0;
 const BACKGROUND_RENDER_PRIORITY:f32 = 0.0;
 const PLAYER_RENDER_PRIORITY:f32 = 1.0; // Higher = on top.
+const ENEMY_RENDER_PRIORITY:f32 = 1.1; // Slightly higher than player.
 
 // Maybe add https://github.com/Trouv/bevy_ecs_ldtk
 // https://github.com/PhaestusFox/bevy_sprite_animation
@@ -20,6 +22,7 @@ const PLAYER_RENDER_PRIORITY:f32 = 1.0; // Higher = on top.
 struct SpriteSheets {
 	//enemy_material: Handle<ColorMaterial>,
 	//tilsets: Handle<TextureAtlas>,
+	player_material: Handle<TextureAtlas>,
 	enemy_material: Handle<TextureAtlas>,
 	explosion: Handle<TextureAtlas>,
 	magic_missile: Handle<TextureAtlas>,
@@ -61,7 +64,6 @@ struct Velocity(Vec3);
 fn main() {
 	App::new()
 		.add_plugins(DefaultPlugins)
-		.add_plugin(enemy::EnemyPlugin)
 		.insert_resource(ClearColor(Color::BLACK))
 		.insert_resource(WindowDescriptor {
 			width: 1920.0,
@@ -74,6 +76,11 @@ fn main() {
 			..Default::default()
 		})
 		.add_startup_system(setup)
+
+		// Technically startup systems, but should happen after startup.
+		.add_plugin(player::PlayerPlugin)
+		.add_plugin(enemy::EnemyPlugin)
+		.add_plugin(spells::SpellPlugin)
 
 		// Rendering
 		.add_system(animate_sprite_system)
@@ -119,6 +126,8 @@ fn setup(
 	// use thread_rng instead of commands.insert_resource(rand::StdRng::new().unwrap());
 
 	// Build Sprite Sheet:
+	let player_texture_atlas_handle = atlas_assets.add(TextureAtlas::from_grid(asset_server.load("player_1x10.png"), Vec2::new(16.0, 16.0), 10, 1));
+
 	let enemy_texture_handle = asset_server.load("enemy_1x4.png");
 	let enemy_texture_atlas = TextureAtlas::from_grid(enemy_texture_handle, Vec2::new(16.0, 16.0), 4, 1);
 	let enemy_texture_atlas_handle = atlas_assets.add(enemy_texture_atlas);
@@ -128,6 +137,7 @@ fn setup(
 	let magic_missile_texture_atlas_handle = atlas_assets.add(TextureAtlas::from_grid(asset_server.load("magic_missile_head.png"), Vec2::new(16.0, 16.0), 3, 1));
 
 	commands.insert_resource(SpriteSheets {
+		player_material: player_texture_atlas_handle,
 		enemy_material: enemy_texture_atlas_handle,
 		explosion: explosion_texture_atlas_handle,
 		magic_missile: magic_missile_texture_atlas_handle,
@@ -168,7 +178,9 @@ fn movement(
 fn clean_oob_components(
 	camera: Res<Camera>,
 	mut query: Query<(Entity, &Transform, With<DestroyOnOOB>)>,
-)
+) {
+	todo!();
+}
 
 //struct GreetTimer(Timer);
 //app.insert_resource(GreetTimer(Timer::from_seconds(2.0, true)))  // True means repeat.
