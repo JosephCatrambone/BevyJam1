@@ -114,13 +114,14 @@ fn apply_spell_effects(
 	// We should consider adding 'sprite' to this fray so we can compare the sizes.
 	for (enemy_transform, mut health, _) in enemy_query.iter_mut() {
 		for (spell_transform, spell_effect) in spell_query.iter() {
-			let enemy_size = Vec2::new(enemy_transform.scale.x, enemy_transform.scale.y);
-			let spell_size = Vec2::new(spell_transform.scale.x, spell_transform.scale.y);
+			let hack_size = Vec2::new(8.0, 8.0);  // TODO: We should be better about how we me measure this distance.
+			//let enemy_size = Vec2::new(enemy_transform.scale.x, enemy_transform.scale.y);
+			//let spell_size = Vec2::new(spell_transform.scale.x, spell_transform.scale.y);
 			let collision = collide(
 				enemy_transform.translation,
-				enemy_size,
+				hack_size,
 				spell_transform.translation,
-				spell_size
+				hack_size
 			);
 			if let Some(_) = collision {
 				// TODO: We should match the type of the collision to the enemy resistance even before we do this.

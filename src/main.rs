@@ -3,18 +3,19 @@ mod input;
 mod player;
 mod spells;
 
-use std::borrow::BorrowMut;
 use bevy::prelude::*;
+use bevy_ecs_tilemap::prelude::*;
 use enemy::*;
 use input::{input_event_system, touch_system, mouse_click_system};
 use std::time::Duration;
 use bevy::render::view::VisibleEntities;
-use rand::{Rand, Rng};
+use rand::{Rand, Rng, thread_rng};
 
 const WINDOW_SCALE:f32 = 1.0/2.0;
 const BACKGROUND_RENDER_PRIORITY:f32 = 0.0;
 const PLAYER_RENDER_PRIORITY:f32 = 1.0; // Higher = on top.
 const ENEMY_RENDER_PRIORITY:f32 = 1.1; // Slightly higher than player.
+const CAMERA_SHAKE_LERP_FACTOR:f32 = 0.1;
 
 // Maybe add https://github.com/Trouv/bevy_ecs_ldtk
 // https://github.com/PhaestusFox/bevy_sprite_animation
@@ -68,6 +69,7 @@ struct GameplayCamera; // Attached to our primary orthographic camera, NOT our U
 fn main() {
 	App::new()
 		.add_plugins(DefaultPlugins)
+		.add_plugin(TilemapPlugin)
 		.insert_resource(ClearColor(Color::BLACK))
 		.insert_resource(WindowDescriptor {
 			width: 1920.0,
@@ -89,6 +91,7 @@ fn main() {
 		// Rendering
 		.add_system(animate_sprite_system)
 		.add_system(clean_oob_components)
+		.add_system(apply_screen_shake)
 		// Movement
 		.add_system(movement)
 		// Inputs:
@@ -125,7 +128,12 @@ fn setup(
 	//camera.camera.far = 10.0;
 	commands.spawn_bundle(camera).insert(GameplayCamera);
 	commands.spawn_bundle(UiCameraBundle::default());
-	commands.insert_resource(ScreenShake::default());
+	commands.insert_resource(ScreenShake {
+		magnitude: 0.0,
+		decay: 1.5,  // Larger -> Faster return to static.
+		target_offset: Vec2::new(0.0,0.0),
+		target_rotation: 0.0
+	});
 
 	// Need some RNG?
 	// use thread_rng instead of commands.insert_resource(rand::StdRng::new().unwrap());
@@ -150,10 +158,44 @@ fn setup(
 }
 
 fn apply_screen_shake(
-	time: Res<Time>,
 	mut screen_shake: ResMut<ScreenShake>,
+	mut camera_query: Query<(&mut Transform, With<GameplayCamera>)>,
 ) {
+	// Stupid shit hacky camera shake.
+	/*
+	Rather than use the right thing: real perlin noise or the profoundly stupid thing: randint,
+	we're going to split the difference and pick a random point, LERP to it, and select a new random point as a function of the distance.
+	If we're on top of the point, our likelihood of keeping the point d(cam, target) is 0.
+	If we're a long ways away, our likelihood of keeping the target is 1.0/(1.0+x), which goes to 1.
+	The new random point is selected at a distance of log(shake_intensity), which could be problematic because we have no harmonics to make fine jitters.
+	*/
+	let (mut camera_transform, _) = camera_query.single_mut();
+	// If there is no screen shake active, return early.
+	if screen_shake.magnitude < 1e-6 {
+		screen_shake.magnitude = 0.0;
+		return;
+	}
 
+	// Camera is Vec3.  Our target is Vec2.  We don't want to mess with the depth of the orthographic camera because everything could get thrown off and now show up.
+	// For efficiency, pull out DX/DY.
+	let camera_dx = screen_shake.target_offset.x - camera_transform.translation.x;
+	let camera_dy = screen_shake.target_offset.y - camera_transform.translation.y;
+	// Move closer to new point.  Lazily split x/y rather than cast to Vec2.
+	camera_transform.translation.x = camera_transform.translation.x + (camera_dx*(1.0-CAMERA_SHAKE_LERP_FACTOR));
+	camera_transform.translation.y = camera_transform.translation.y + (camera_dy*(1.0-CAMERA_SHAKE_LERP_FACTOR));
+	// Now maybe move to a new place.
+	let distance_squared = camera_dx*camera_dx + camera_dy*camera_dy;
+	let keep_target_probability = distance_squared / (1.0 + distance_squared);
+	let mut rng = thread_rng();
+	if rng.next_f32() > keep_target_probability {
+		// Need a new target.
+		let log_intensity = screen_shake.magnitude.log2().max(0.0);
+		let new_x = 2.0*(rng.next_f32()-0.5) * log_intensity;
+		let new_y = 2.0*(rng.next_f32()-0.5) * log_intensity;
+		screen_shake.target_offset = Vec2::new(new_x, new_y);
+	}
+	// Decay
+	screen_shake.magnitude /= screen_shake.decay;
 }
 
 fn animate_sprite_system(

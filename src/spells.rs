@@ -1,7 +1,7 @@
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 
-use crate::{DestroyOnOOB, ENEMY_RENDER_PRIORITY, SpriteSheets, Velocity};
+use crate::{DestroyOnOOB, ENEMY_RENDER_PRIORITY, ScreenShake, SpriteSheets, Velocity};
 use crate::player::PlayerState;
 
 const MAGIC_MISSILE_SPEED:f32 = 100.0f32;
@@ -24,6 +24,7 @@ pub struct SpellEffect {
 fn cast_magic_missile(
 	mut commands: Commands,
 	windows: Res<Windows>,
+	mut screen_shake: ResMut<ScreenShake>,
 	mouse_button_input: Res<Input<MouseButton>>,
 	atlas_assets: Res<Assets<TextureAtlas>>,
 	sprite_sheets: Res<SpriteSheets>,
@@ -34,11 +35,15 @@ fn cast_magic_missile(
 		if let Some(mouse_position) = window.cursor_position() {
 			// Mouse Position is in Window space.
 			let delta = Vec3::new(((mouse_position.x/window.width())-0.5) - player_state.position.x, ((mouse_position.y/window.height())-0.5) - player_state.position.y, 0.0).normalize() * MAGIC_MISSILE_SPEED;
+			let angle = delta.y.atan2(delta.x);  // TODO: This isn't quite right.
 
 			commands
 				.spawn_bundle(SpriteSheetBundle {
 					texture_atlas: atlas_assets.get_handle(&sprite_sheets.magic_missile),
-					transform: Transform {translation: player_state.position, ..Default::default()
+					transform: Transform {
+						translation: player_state.position,
+						rotation: Quat::from_rotation_z(-angle),
+						..Default::default()
 					},
 					..Default::default()
 				})
@@ -49,6 +54,9 @@ fn cast_magic_missile(
 					base_damage: 1.0f32,
 					element_type: 0,
 				});
+
+			// Shake
+			screen_shake.magnitude += 20.0;
 		}
 	}
 
