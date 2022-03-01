@@ -8,5 +8,4 @@ resolver = "2" # Important! wgpu/Bevy needs this!
 
 [dependencies]
 bevy = "^0.6"
-bevy_ecs_tilemap = "^0.5"
 rand = "^0.3"

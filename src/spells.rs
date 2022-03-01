@@ -2,7 +2,7 @@ use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 
 use crate::{DestroyOnOOB, ENEMY_RENDER_PRIORITY, ScreenShake, SpriteSheets, Velocity};
-use crate::player::PlayerState;
+use crate::player::Player;
 
 const MAGIC_MISSILE_SPEED:f32 = 100.0f32;
 
@@ -28,20 +28,21 @@ fn cast_magic_missile(
 	mouse_button_input: Res<Input<MouseButton>>,
 	atlas_assets: Res<Assets<TextureAtlas>>,
 	sprite_sheets: Res<SpriteSheets>,
-	player_state: Res<PlayerState>, // Used to give us direction for the attack.
+	player: Query<(&Transform, With<Player>)>, // Used to give us direction for the attack.
 ) {
 	if mouse_button_input.just_pressed(MouseButton::Left) {
 		let window = windows.get_primary().expect("Could not acquire primary game window.");
 		if let Some(mouse_position) = window.cursor_position() {
+			let (player_transform, _) = player.single();
 			// Mouse Position is in Window space.
-			let delta = Vec3::new(((mouse_position.x/window.width())-0.5) - player_state.position.x, ((mouse_position.y/window.height())-0.5) - player_state.position.y, 0.0).normalize() * MAGIC_MISSILE_SPEED;
+			let delta = Vec3::new(((mouse_position.x/window.width())-0.5) - player_transform.translation.x, ((mouse_position.y/window.height())-0.5) - player_transform.translation.y, 0.0).normalize() * MAGIC_MISSILE_SPEED;
 			let angle = delta.y.atan2(delta.x);  // TODO: This isn't quite right.
 
 			commands
 				.spawn_bundle(SpriteSheetBundle {
 					texture_atlas: atlas_assets.get_handle(&sprite_sheets.magic_missile),
 					transform: Transform {
-						translation: player_state.position,
+						translation: player_transform.translation,
 						rotation: Quat::from_rotation_z(-angle),
 						..Default::default()
 					},

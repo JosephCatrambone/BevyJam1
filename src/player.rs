@@ -8,39 +8,27 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_startup_system(player_startup);
+		//app.add_startup_system(player_startup);
 		app.add_system_set(
 			SystemSet::new()
 				.with_run_criteria(FixedTimestep::step(1.0))
 				.with_system(respawn_player)
 		);
+		app.add_system(check_for_player_death);
 	}
 }
 
-pub struct PlayerState {
-	pub alive: bool,
-	time_since_death: f32,
-	pub position: Vec3,  // We copy from the player's transform so enemies can move towards this.
-}
-
-fn player_startup(
-	mut commands: Commands,
-) {
-	commands.insert_resource(PlayerState {
-		alive: false,
-		time_since_death: 0.0f32,
-		position: Vec3::default(),
-	});
-}
+#[derive(Component)]
+pub struct Player;
 
 fn respawn_player(
 	mut commands: Commands,
 	atlas_assets: Res<Assets<TextureAtlas>>,
 	sprite_sheets: Res<SpriteSheets>,
 	//time: Res<Time>,
-	mut player_state: ResMut<PlayerState>,
+	player_query: Query<With<Player>>,
 ) {
-	if player_state.alive {
+	if let Some(_) = player_query.iter().next() {
 		return; // Nothing to do.
 	}
 
@@ -64,9 +52,19 @@ fn respawn_player(
 	// Spawn!
 	commands
 		.spawn_bundle(sb)
-		.insert(Health(10.0f32));
-
-	player_state.alive = true;
+		.insert(Health(10.0f32))
+		.insert(Player);
 }
 
-fn check_for_player_death() {}
+fn check_for_player_death(
+	mut commands: Commands,
+	query: Query<(Entity, &Health, With<Player>)>,
+) {
+	//let (entity, player_health, _) = query.single();
+	if let Some((entity, player_health, _)) = query.iter().next() {
+		if player_health.0 <= 0.0 {
+			// Player is dead.  :'(
+			commands.entity(entity).despawn();
+		}
+	}
+}

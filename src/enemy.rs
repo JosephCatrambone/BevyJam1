@@ -5,10 +5,10 @@ use bevy::core::FixedTimestep;
 use bevy::sprite::collide_aabb::collide;
 
 use crate::{Health, SpriteSheets, Velocity, WindowBounds, ENEMY_RENDER_PRIORITY};
-use crate::player::PlayerState;
+use crate::player::Player;
 use crate::spells::SpellEffect;
 
-const ENEMY_SPEED: f32 = 3.0f32;
+const ENEMY_SPEED: f32 = 6.0f32;
 const ENEMY_HEALTH: f32 = 1.0f32;
 
 // Public Access:
@@ -61,9 +61,14 @@ fn spawn_enemy(
 	mut active_enemies: ResMut<ActiveEnemiesInWave>,
 	sprite_sheets: Res<SpriteSheets>,
 	atlas_assets: Res<Assets<TextureAtlas>>,
-	player_state: Res<PlayerState>, // So we know where to go.
+	player: Query<(&Transform, With<Player>)>, // So we know where to go.
 	window: Res<WindowBounds>,
 ) {
+	// Let's not spawn enemies until the player exists...
+	if player.iter().next().is_none() {
+		return;
+	}
+
 	if pending_enemies.0 > 0 {
 		let mut rng = thread_rng();
 		//let x = rng.gen::<f32>() * 10f32;
@@ -72,7 +77,8 @@ fn spawn_enemy(
 		let y = rng.gen_range(window.bottom, window.top);
 
 		// Set trajectory to player.
-		let trajectory = Vec3::new(player_state.position.x - x, player_state.position.y - y, 0f32).normalize()*ENEMY_SPEED;
+		let (player_transform, _) = player.single();
+		let trajectory = Vec3::new(player_transform.translation.x - x, player_transform.translation.y - y, 0f32).normalize()*ENEMY_SPEED;
 
 		commands
 			.spawn_bundle(SpriteSheetBundle {

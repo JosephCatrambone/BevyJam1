@@ -1,10 +1,10 @@
 mod enemy;
 mod input;
+mod level;
 mod player;
 mod spells;
 
 use bevy::prelude::*;
-use bevy_ecs_tilemap::prelude::*;
 use enemy::*;
 use input::{input_event_system, touch_system, mouse_click_system};
 use std::time::Duration;
@@ -23,7 +23,7 @@ const CAMERA_SHAKE_LERP_FACTOR:f32 = 0.1;
 // Resources
 struct SpriteSheets {
 	//enemy_material: Handle<ColorMaterial>,
-	//tilsets: Handle<TextureAtlas>,
+	level_tileset: Handle<TextureAtlas>,
 	player_material: Handle<TextureAtlas>,
 	enemy_material: Handle<TextureAtlas>,
 	explosion: Handle<TextureAtlas>,
@@ -51,9 +51,6 @@ struct WindowBounds {
 
 // Components:
 #[derive(Component)]
-struct Player;
-
-#[derive(Component)]
 struct DestroyOnOOB; // If assigned to an entity, will get deleted when it moves off camera.
 
 #[derive(Component)]
@@ -69,7 +66,6 @@ struct GameplayCamera; // Attached to our primary orthographic camera, NOT our U
 fn main() {
 	App::new()
 		.add_plugins(DefaultPlugins)
-		.add_plugin(TilemapPlugin)
 		.insert_resource(ClearColor(Color::BLACK))
 		.insert_resource(WindowDescriptor {
 			width: 1920.0,
@@ -84,6 +80,7 @@ fn main() {
 		.add_startup_system(setup)
 
 		// Technically startup systems, but should happen after startup.
+		.add_plugin(level::LevelPlugin)
 		.add_plugin(player::PlayerPlugin)
 		.add_plugin(enemy::EnemyPlugin)
 		.add_plugin(spells::SpellPlugin)
@@ -139,6 +136,8 @@ fn setup(
 	// use thread_rng instead of commands.insert_resource(rand::StdRng::new().unwrap());
 
 	// Build Sprite Sheet:
+	let level_tileset_handle = atlas_assets.add(TextureAtlas::from_grid(asset_server.load("spritesheet_1x7.png"), Vec2::new(16.0, 16.0), 7, 1));
+
 	let player_texture_atlas_handle = atlas_assets.add(TextureAtlas::from_grid(asset_server.load("player_1x10.png"), Vec2::new(16.0, 16.0), 10, 1));
 
 	let enemy_texture_handle = asset_server.load("enemy_1x4.png");
@@ -150,6 +149,7 @@ fn setup(
 	let magic_missile_texture_atlas_handle = atlas_assets.add(TextureAtlas::from_grid(asset_server.load("magic_missile_head.png"), Vec2::new(16.0, 16.0), 3, 1));
 
 	commands.insert_resource(SpriteSheets {
+		level_tileset: level_tileset_handle,
 		player_material: player_texture_atlas_handle,
 		enemy_material: enemy_texture_atlas_handle,
 		explosion: explosion_texture_atlas_handle,
@@ -227,12 +227,11 @@ fn clean_oob_components(
 	window_bounds: Res<WindowBounds>, // Eventually we should use the VisibleEntities on the camera.
 	mut entity_query: Query<(Entity, &Transform, With<DestroyOnOOB>)>,
 ) {
-	// TODO: Swap this window-based hack with one that uses the real properties.
+	// TODO: Swap this window-based hack with one that uses the real properties, like the visible detector in Camera.
 	for (entity, tf, _) in entity_query.iter_mut() {
 		let in_bounds = tf.translation.x > window_bounds.left && tf.translation.x < window_bounds.right && tf.translation.y > window_bounds.bottom && tf.translation.y < window_bounds.top;
 		if !in_bounds {
 			commands.entity(entity).despawn();
-			info!("Removing OOB entity.");
 		}
 	}
 }
@@ -240,9 +239,6 @@ fn clean_oob_components(
 //struct GreetTimer(Timer);
 //app.insert_resource(GreetTimer(Timer::from_seconds(2.0, true)))  // True means repeat.
 //fn greet_enemies(time: Res<Time>, mut timer: ResMut<GreetTimer>, query: Query<&Transform, With<Enemy>>) {
-
-//fn move_enemies(time: Res<Time>, query: Query<(&mut Transform, &Velocity), With<Enemy>>) {
-
 
 
 /*
