@@ -3,6 +3,7 @@ mod input;
 mod level;
 mod player;
 mod spells;
+mod ui_text;
 
 use bevy::prelude::*;
 use enemy::*;
@@ -80,6 +81,7 @@ fn main() {
 		.add_startup_system(setup)
 
 		// Technically startup systems, but should happen after startup.
+		.add_plugin(ui_text::TextDisplayPlugin)
 		.add_plugin(level::LevelPlugin)
 		.add_plugin(player::PlayerPlugin)
 		.add_plugin(enemy::EnemyPlugin)
@@ -155,6 +157,8 @@ fn setup(
 		explosion: explosion_texture_atlas_handle,
 		magic_missile: magic_missile_texture_atlas_handle,
 	});
+
+	commands.spawn().insert(ui_text::UIText::from_string("You're a Heckin' Wizard!  Fight!".to_string()));
 }
 
 fn apply_screen_shake(

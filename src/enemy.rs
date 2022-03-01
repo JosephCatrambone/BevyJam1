@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use bevy::core::FixedTimestep;
 use bevy::sprite::collide_aabb::collide;
 
-use crate::{Health, SpriteSheets, Velocity, WindowBounds, ENEMY_RENDER_PRIORITY};
+use crate::{Health, SpriteSheets, Velocity, WindowBounds, ENEMY_RENDER_PRIORITY, ui_text};
 use crate::player::Player;
 use crate::spells::SpellEffect;
 
@@ -100,16 +100,16 @@ fn spawn_enemy(
 }
 
 fn complete_wave(
+	mut commands: Commands,
 	mut wave: ResMut<Wave>,
 	mut pending_enemies: ResMut<PendingEnemiesInWave>,
 	active_enemies: Res<ActiveEnemiesInWave>,
 ) {
 	// This does nothing but bump our wave count and reset the number of enemies.
 	if pending_enemies.0 == 0 && active_enemies.0 == 0 {
-		println!("Pending enemies: {}  Active enemies: {}", &pending_enemies.0, &active_enemies.0);
 		wave.0 += 1;
 		pending_enemies.0 = (1+wave.0)*2;
-		println!("Starting wave {}.", &wave.0);
+		commands.spawn().insert(ui_text::UIText::from_string(format!("Wave {}", wave.0)));
 	}
 }
 
@@ -132,8 +132,6 @@ fn apply_spell_effects(
 			if let Some(_) = collision {
 				// TODO: We should match the type of the collision to the enemy resistance even before we do this.
 				health.0 -= spell_effect.base_damage;
-
-				info!("Damage.  Health remaining: {}", health.0);
 			}
 		}
 	}
@@ -151,9 +149,6 @@ fn count_and_remove_dead_enemies(
 	for (entity, health, _) in query.iter() {
 		if health.0 <= 0.0 {
 			commands.entity(entity).despawn();
-			//commands.entity(entity).remove::<Enemy>();
-			//commands.entity(entity).remove_bundle::<Enemy>();
-			info!("Removing dead enemy.");
 		} else {
 			live_enemies += 1;
 		}
